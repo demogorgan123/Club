@@ -1,0 +1,5 @@
+{
+  "name": "Club Workspace",
+  "description": "A Google Workspace replica for college clubs, featuring chat, task management, and simulated integrations for Docs, Sheets, and more. Designed for streamlined collaboration and organization within club teams.",
+  "requestFramePermissions": []
+}
