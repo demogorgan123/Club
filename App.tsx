@@ -7,6 +7,7 @@ import Header from './components/Header';
 import ChatView from './components/ChatView';
 import TaskView from './components/TaskView';
 import AppsView from './components/AppsView';
+import CalendarView from './components/CalendarView'; // Import new component
 import OnboardingScreen from './components/OnboardingScreen';
 import CreateTeamModal from './components/CreateTeamModal';
 import MembersModal from './components/MembersModal';
@@ -83,7 +84,6 @@ const App: React.FC = () => {
     setChannels(prev => [...prev, newChannel]);
     setUsers(updatedUsers);
     setTasks(prev => ({...prev, [newTeamId]: []}));
-    // Default to a basic set of apps for newly created teams
     setTeamApps(prev => ({...prev, [newTeamId]: AVAILABLE_APPS.slice(0, 4)}));
   };
 
@@ -112,13 +112,52 @@ const App: React.FC = () => {
         [teamId]: [...(prev[teamId] || []), task]
     }));
   };
+  
+  const handleOpenDM = (targetUserId: string) => {
+      if (!currentUser) return;
+      
+      const memberIds = [currentUser.id, targetUserId].sort();
+      const existingChannel = channels.find(c => 
+          c.type === ChannelType.DIRECT && 
+          c.memberIds && 
+          c.memberIds.length === 2 && 
+          c.memberIds.every(id => memberIds.includes(id))
+      );
+      
+      if (existingChannel) {
+          setActiveView({ type: 'channel', id: existingChannel.id });
+      } else {
+          // Create new DM channel
+          const newChannel: Channel = {
+              id: `dm-${memberIds.join('-')}`,
+              name: `dm-${memberIds.join('-')}`,
+              type: ChannelType.DIRECT,
+              memberIds: memberIds
+          };
+          setChannels(prev => [...prev, newChannel]);
+          setActiveView({ type: 'channel', id: newChannel.id });
+      }
+      setMembersModalOpen(false);
+      if (window.innerWidth < 768) setSidebarOpen(false);
+  };
 
   const availableChannels = useMemo(() => {
     if (!currentUser) return [];
+    
+    // For direct messages, always show ones where the user is a member
+    const directChannels = channels.filter(c => c.type === ChannelType.DIRECT && c.memberIds?.includes(currentUser.id));
+    
+    // Regular channels
+    let regularChannels: Channel[] = [];
     if (['Secretary', 'Coordinator', 'Joint Coordinator'].includes(currentUser.role)) {
-      return channels;
+      regularChannels = channels.filter(c => c.type !== ChannelType.DIRECT);
+    } else {
+      regularChannels = channels.filter(c => 
+          c.type !== ChannelType.DIRECT && (c.type !== 'team' || c.teamId === currentUser.teamId)
+      );
     }
-    return channels.filter(c => c.type !== 'team' || c.teamId === currentUser.teamId);
+    
+    return [...regularChannels, ...directChannels];
   }, [currentUser, channels]);
   
   const activeChannel = useMemo(() => channels.find(c => c.id === activeView.id), [activeView.id, channels]);
@@ -126,7 +165,13 @@ const App: React.FC = () => {
   const activeTeamApps = useMemo(() => activeTeam ? teamApps[activeTeam.id] || [] : [], [activeTeam, teamApps]);
 
   const renderActiveView = () => {
-    if (!currentUser || !activeChannel) return <div className="p-8">Loading your workspace...</div>;
+    if (!currentUser) return <div className="p-8">Loading...</div>;
+    
+    if (activeView.type === 'calendar') {
+        return <CalendarView tasks={tasks} teams={teams} users={users} />;
+    }
+
+    if (!activeChannel) return <div className="p-8">Select a channel...</div>;
     
     switch (activeView.type) {
       case 'channel':
@@ -172,6 +217,7 @@ const App: React.FC = () => {
         users={users}
         onInviteUser={handleInviteUser}
         onUpdateUserRole={handleUpdateUserRole}
+        onMessageUser={handleOpenDM}
         team={activeTeam}
         teams={teams}
       />
@@ -184,14 +230,21 @@ const App: React.FC = () => {
         <Sidebar 
           clubName={clubName}
           currentUser={currentUser}
+          users={users}
           channels={availableChannels}
           teams={teams}
           activeChannelId={activeView.id}
+          activeViewType={activeView.type}
           onSelectChannel={(channelId) => {
               setActiveView({ type: 'channel', id: channelId });
               if (window.innerWidth < 768) setSidebarOpen(false);
           }}
+          onSelectCalendar={() => {
+              setActiveView({ type: 'calendar', id: 'calendar' });
+              if (window.innerWidth < 768) setSidebarOpen(false);
+          }}
           onOpenCreateTeamModal={() => setCreateTeamModalOpen(true)}
+          onOpenMembersModal={() => setMembersModalOpen(true)}
         />
       </div>
       <main className="flex-1 flex flex-col min-w-0">

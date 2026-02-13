@@ -1,4 +1,3 @@
-// Import React to make the JSX namespace available for type definitions.
 import React from 'react';
 
 export type Role = 'Secretary' | 'Coordinator' | 'Joint Coordinator' | 'Team Head' | 'Team Co-Head' | 'Member';
@@ -9,14 +8,12 @@ export interface User {
   avatarUrl: string;
   role: Role;
   teamId?: string;
-  // FIX: Added optional email property to resolve type error.
   email?: string;
 }
 
 export interface Team {
   id: string;
   name: string;
-  // FIX: Updated icon type to React.ElementType to be compatible with lucide-react icons.
   icon: React.ElementType;
 }
 
@@ -24,6 +21,7 @@ export enum ChannelType {
   GENERAL = 'general',
   ANNOUNCEMENTS = 'announcements',
   TEAM = 'team',
+  DIRECT = 'direct',
 }
 
 export interface Channel {
@@ -31,6 +29,7 @@ export interface Channel {
   name: string;
   type: ChannelType;
   teamId?: string;
+  memberIds?: string[];
 }
 
 export interface Message {
@@ -56,7 +55,7 @@ export interface Task {
 }
 
 export interface ActiveView {
-  type: 'channel' | 'tasks' | 'apps';
+  type: 'channel' | 'tasks' | 'apps' | 'calendar';
   id: string; // channelId
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, Role, Team } from '../types';
-import { X, Send } from 'lucide-react';
+import { X, Send, MessageCircle } from 'lucide-react';
 
 interface MembersModalProps {
   isOpen: boolean;
@@ -9,13 +9,14 @@ interface MembersModalProps {
   users: User[];
   onInviteUser: (email: string) => void;
   onUpdateUserRole: (userId: string, newRole: Role) => void;
+  onMessageUser: (userId: string) => void;
   team?: Team; // The currently active team, if any
   teams: Team[]; // All teams
 }
 
 const ROLES_HIERARCHY: Role[] = ['Secretary', 'Coordinator', 'Joint Coordinator', 'Team Head', 'Team Co-Head', 'Member'];
 
-const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, currentUser, users, onInviteUser, onUpdateUserRole, team, teams }) => {
+const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, currentUser, users, onInviteUser, onUpdateUserRole, onMessageUser, team, teams }) => {
   const [inviteEmail, setInviteEmail] = useState('');
   
   const handleInvite = (e: React.FormEvent) => {
@@ -77,15 +78,23 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, currentUse
         <div className="overflow-y-auto pr-2 -mr-2">
           <div className="space-y-3">
             {usersToDisplay.map(user => (
-              <div key={user.id} className="flex items-center justify-between bg-gray-900/50 p-3 rounded-md">
+              <div key={user.id} className="flex items-center justify-between bg-gray-900/50 p-3 rounded-md group hover:bg-gray-800 transition-colors">
                 <div className="flex items-center space-x-3">
                   <img src={user.avatarUrl} alt={user.name} className="h-10 w-10 rounded-full" />
                   <div>
-                    <p className="font-semibold text-white">{user.name}</p>
+                    <p className="font-semibold text-white flex items-center gap-2">
+                        {user.name}
+                         {user.id === currentUser.id && <span className="text-xs text-gray-500">(You)</span>}
+                    </p>
                     <p className="text-xs text-gray-400">{user.email || 'No email'}</p>
                   </div>
                 </div>
-                <div>
+                <div className="flex items-center space-x-3">
+                  {user.id !== currentUser.id && (
+                       <button onClick={() => onMessageUser(user.id)} className="p-2 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full transition-colors" title="Send Direct Message">
+                          <MessageCircle className="h-4 w-4" />
+                       </button>
+                  )}
                   {canEdit(user) ? (
                     <select
                       value={user.role}

@@ -40,7 +40,12 @@ export const initializeWorkspaceData = (teamsToCreate: { name: string; icon: Rea
         teamId: team.id,
     }));
     
-    const channels = [...generalChannels, ...teamChannels];
+    // Initial DM between Alex and Brenda
+    const dmChannels: Channel[] = [
+      { id: 'dm-user-1-user-2', name: 'dm-alex-brenda', type: ChannelType.DIRECT, memberIds: ['user-1', 'user-2'] }
+    ];
+    
+    const channels = [...generalChannels, ...teamChannels, ...dmChannels];
 
     const tasks: { [teamId: string]: Task[] } = {};
     teams.forEach(team => {
@@ -60,6 +65,10 @@ export const getMessagesForChannel = (channelId: string) => {
       'announcements': [
         { id: 'msg-a1', text: 'IMPORTANT: First all-hands meeting is this Friday. Please be there!', userId: 'user-1', timestamp: '9:00 AM' },
       ],
+      'dm-user-1-user-2': [
+        { id: 'msg-dm1', text: 'Hey Brenda, do you have the latest budget report?', userId: 'user-1', timestamp: '11:00 AM' },
+        { id: 'msg-dm2', text: 'Yes, sending it over shortly.', userId: 'user-2', timestamp: '11:05 AM' },
+      ]
     };
     return messages[channelId] || [];
 }

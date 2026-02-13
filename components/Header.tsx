@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { Channel, Team, User } from '../types';
-import { Hash, MessageSquare, ListTodo, AppWindow, Menu, Users } from 'lucide-react';
+import { Channel, Team, User, ChannelType } from '../types';
+import { Hash, MessageSquare, ListTodo, AppWindow, Menu, Users, MessageCircle } from 'lucide-react';
 
 interface HeaderProps {
   channel?: Channel;
   team?: Team;
-  activeViewType: 'channel' | 'tasks' | 'apps';
-  onViewChange: (viewType: 'channel' | 'tasks' | 'apps') => void;
+  activeViewType: 'channel' | 'tasks' | 'apps' | 'calendar';
+  onViewChange: (viewType: 'channel' | 'tasks' | 'apps' | 'calendar') => void;
   currentUser: User;
   users: User[];
   onToggleSidebar: () => void;
@@ -14,15 +14,50 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ channel, team, activeViewType, onViewChange, currentUser, users, onToggleSidebar, onOpenMembersModal }) => {
-  if (!channel) return null;
-
+  
   const membersToDisplay = useMemo(() => {
+    if (activeViewType === 'calendar') return users.slice(0, 5); // Just show some users for calendar
+    if (!channel) return [];
+
+    if (channel.type === ChannelType.DIRECT && channel.memberIds) {
+         return users.filter(u => channel.memberIds?.includes(u.id));
+    }
     if (team) {
       return users.filter(u => u.teamId === team.id);
     }
     // For general channels, show top leadership
     return users.filter(u => ['Secretary', 'Coordinator', 'Joint Coordinator'].includes(u.role));
-  }, [team, users]);
+  }, [team, users, channel, activeViewType]);
+
+  const renderTitle = () => {
+      if (activeViewType === 'calendar') {
+          return (
+             <div className="flex items-center space-x-2">
+                <div className="h-6 w-6 text-primary-500 font-bold" /> 
+                <h2 className="text-xl font-bold text-white">Calendar</h2>
+            </div>
+          )
+      }
+      if (!channel) return null;
+
+      if (channel.type === ChannelType.DIRECT) {
+          const otherUserId = channel.memberIds?.find(id => id !== currentUser.id);
+          const otherUser = users.find(u => u.id === otherUserId);
+          return (
+            <div className="flex items-center space-x-2">
+                {otherUser ? <img src={otherUser.avatarUrl} className="h-6 w-6 rounded-full" /> : <MessageCircle className="h-6 w-6 text-gray-400" />}
+                <h2 className="text-xl font-bold text-white">{otherUser ? otherUser.name : 'Direct Message'}</h2>
+            </div>
+          )
+      }
+
+      return (
+        <div className="flex items-center space-x-2">
+            {team?.icon ? <team.icon className="h-6 w-6 text-gray-400" /> : <Hash className="h-6 w-6 text-gray-400" />}
+            <h2 className="text-xl font-bold text-white">{channel.name}</h2>
+        </div>
+      );
+  }
 
   return (
     <header className="flex-shrink-0 bg-gray-900 border-b border-gray-800 flex flex-col">
@@ -31,10 +66,7 @@ const Header: React.FC<HeaderProps> = ({ channel, team, activeViewType, onViewCh
           <button onClick={onToggleSidebar} className="md:hidden p-2 -ml-2 text-gray-400 hover:text-white">
             <Menu className="h-6 w-6" />
           </button>
-          <div className="flex items-center space-x-2">
-            {team?.icon ? <team.icon className="h-6 w-6 text-gray-400" /> : <Hash className="h-6 w-6 text-gray-400" />}
-            <h2 className="text-xl font-bold text-white">{channel.name}</h2>
-          </div>
+          {renderTitle()}
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex -space-x-2 overflow-hidden">
@@ -47,14 +79,16 @@ const Header: React.FC<HeaderProps> = ({ channel, team, activeViewType, onViewCh
                </div>
              )}
           </div>
-          <button onClick={onOpenMembersModal} className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 px-3 rounded-md text-sm">
-             <Users className="h-4 w-4"/>
-             <span>Members</span>
-          </button>
+          {activeViewType !== 'calendar' && (
+              <button onClick={onOpenMembersModal} className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-2 px-3 rounded-md text-sm">
+                 <Users className="h-4 w-4"/>
+                 <span className="hidden sm:inline">Members</span>
+              </button>
+          )}
         </div>
       </div>
       
-      {team && (
+      {team && activeViewType !== 'calendar' && channel?.type === ChannelType.TEAM && (
         <div className="px-4">
           <div className="flex border-b border-gray-800">
             <TabButton icon={MessageSquare} label="Chat" active={activeViewType === 'channel'} onClick={() => onViewChange('channel')} />
