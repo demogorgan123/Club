@@ -95,7 +95,6 @@ const App: React.FC = () => {
       name: userName,
       avatarUrl: `https://picsum.photos/seed/${newUserId}/40/40`,
       role: 'Member',
-      // FIX: Added email to the new user object.
       email: email,
     };
     setUsers(prev => [...prev, newUser]);
@@ -107,6 +106,12 @@ const App: React.FC = () => {
     ));
   };
 
+  const handleAddTask = (teamId: string, task: Task) => {
+    setTasks(prev => ({
+        ...prev,
+        [teamId]: [...(prev[teamId] || []), task]
+    }));
+  };
 
   const availableChannels = useMemo(() => {
     if (!currentUser) return [];
@@ -127,7 +132,16 @@ const App: React.FC = () => {
       case 'channel':
         return <ChatView channel={activeChannel} currentUser={currentUser} allUsers={users} />;
       case 'tasks':
-        return <TaskView channel={activeChannel} currentUser={currentUser} team={activeTeam} tasks={tasks} users={users} />;
+        return (
+            <TaskView 
+                channel={activeChannel} 
+                currentUser={currentUser} 
+                team={activeTeam} 
+                tasks={tasks} 
+                users={users} 
+                onAddTask={handleAddTask}
+            />
+        );
       case 'apps':
         return <AppsView channel={activeChannel} apps={activeTeamApps} />
       default:
