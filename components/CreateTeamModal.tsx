@@ -46,14 +46,8 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCr
     e.preventDefault();
     setError('');
 
-    if (!teamName.trim() || !headId || !coHead1Id || !coHead2Id) {
-      setError('All fields are required.');
-      return;
-    }
-
-    const selectedIds = new Set([headId, coHead1Id, coHead2Id]);
-    if (selectedIds.size !== 3) {
-      setError('You must select three different members for the leadership roles.');
+    if (!teamName.trim()) {
+      setError('Team name is required.');
       return;
     }
 
@@ -71,10 +65,10 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCr
   const SelectedIcon = getTeamIcon(selectedIconId);
 
   return (
-    <div className="fixed inset-0 bg-gray-950 bg-opacity-75 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-8 w-full max-w-md border border-gray-700 shadow-xl">
+    <div className="fixed inset-0 bg-gray-950 bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg p-4 md:p-8 w-full max-w-md border border-gray-700 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-white">Create a New Team</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-white">Create a New Team</h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700">
             <X className="h-6 w-6 text-gray-400" />
           </button>
@@ -111,9 +105,8 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCr
                 value={value}
                 onChange={(e) => setter(e.target.value)}
                 className="w-full bg-gray-900 rounded-md py-2 px-3 border border-gray-600 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-white appearance-none"
-                required
               >
-                <option value="" disabled>Select a member</option>
+                <option value="">Unassigned</option>
                 {availableMembers.map(user => (
                   <option key={user.id} value={user.id}>{user.name}</option>
                 ))}

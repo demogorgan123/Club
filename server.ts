@@ -15,9 +15,10 @@ app.use(express.json());
 async function readDB() {
     try {
         const data = await fs.readFile(DB_PATH, 'utf-8');
+        if (!data || data.trim() === '') throw new Error('Empty file');
         return JSON.parse(data);
     } catch (error) {
-        // Return default structure if file doesn't exist
+        // Return default structure if file doesn't exist or is invalid
         return {
             clubName: '',
             isInitialized: false,
@@ -25,17 +26,13 @@ async function readDB() {
             teams: [],
             channels: [],
             tasks: {},
+            events: [],
             messages: {
                 'general': [
                     { id: 'msg-g1', text: 'Welcome to the club workspace!', userId: 'user-1', timestamp: '10:30 AM' },
-                    { id: 'msg-g2', text: 'Hey everyone, glad to be here.', userId: 'user-4', timestamp: '10:31 AM' },
                 ],
                 'announcements': [
                     { id: 'msg-a1', text: 'IMPORTANT: First all-hands meeting is this Friday. Please be there!', userId: 'user-1', timestamp: '9:00 AM' },
-                ],
-                'dm-user-1-user-2': [
-                    { id: 'msg-dm1', text: 'Hey Brenda, do you have the latest budget report?', userId: 'user-1', timestamp: '11:00 AM' },
-                    { id: 'msg-dm2', text: 'Yes, sending it over shortly.', userId: 'user-2', timestamp: '11:05 AM' },
                 ]
             },
             teamApps: {}
@@ -58,8 +55,25 @@ app.get('/api/data', async (req, res) => {
 });
 
 app.post('/api/data', async (req, res) => {
-    await writeDB(req.body);
+    const newData = req.body;
+    const oldData = await readDB();
+    
+    // Preserve messages if they exist in old data but not in new data
+    if (oldData.messages && !newData.messages) {
+        newData.messages = oldData.messages;
+    }
+    
+    await writeDB(newData);
     res.json({ success: true });
+});
+
+app.post('/api/reset', async (req, res) => {
+    try {
+        await fs.unlink(DB_PATH);
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ success: true }); // Already deleted or doesn't exist
+    }
 });
 
 app.post('/api/messages', async (req, res) => {
@@ -73,6 +87,72 @@ app.post('/api/messages', async (req, res) => {
         res.json({ success: true });
     } else {
         res.status(400).json({ error: 'DB not initialized' });
+    }
+});
+
+app.post('/api/messages/react', async (req, res) => {
+    const { channelId, messageId, emoji, userId } = req.body;
+    const data = await readDB();
+    if (data && data.messages && data.messages[channelId]) {
+        const message = data.messages[channelId].find((m: any) => m.id === messageId);
+        if (message) {
+            if (!message.reactions) message.reactions = {};
+            if (!message.reactions[emoji]) message.reactions[emoji] = [];
+            
+            const index = message.reactions[emoji].indexOf(userId);
+            if (index > -1) {
+                message.reactions[emoji].splice(index, 1);
+                if (message.reactions[emoji].length === 0) delete message.reactions[emoji];
+            } else {
+                message.reactions[emoji].push(userId);
+            }
+            await writeDB(data);
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: 'Message not found' });
+        }
+    } else {
+        res.status(400).json({ error: 'Invalid request' });
+    }
+});
+
+app.post('/api/messages/edit', async (req, res) => {
+    const { channelId, messageId, text } = req.body;
+    const data = await readDB();
+    if (data && data.messages && data.messages[channelId]) {
+        const message = data.messages[channelId].find((m: any) => m.id === messageId);
+        if (message) {
+            message.text = text;
+            message.isEdited = true;
+            await writeDB(data);
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: 'Message not found' });
+        }
+    } else {
+        res.status(400).json({ error: 'Invalid request' });
+    }
+});
+
+app.post('/api/messages/delete', async (req, res) => {
+    const { channelId, messageId } = req.body;
+    const data = await readDB();
+    if (data && data.messages && data.messages[channelId]) {
+        data.messages[channelId] = data.messages[channelId].filter((m: any) => m.id !== messageId);
+        await writeDB(data);
+        res.json({ success: true });
+    } else {
+        res.status(400).json({ error: 'Invalid request' });
+    }
+});
+
+app.get('/api/messages/:channelId', async (req, res) => {
+    const { channelId } = req.params;
+    const data = await readDB();
+    if (data && data.messages) {
+        res.json(data.messages[channelId] || []);
+    } else {
+        res.json([]);
     }
 });
 

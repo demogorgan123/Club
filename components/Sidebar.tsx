@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Channel, Team, ChannelType } from '../types';
-import { Hash, Megaphone, Settings, Plus, Calendar, MessageCircle } from 'lucide-react';
+import { Hash, Megaphone, Settings, Plus, Calendar, MessageCircle, X, Users } from 'lucide-react';
 import { getTeamIcon } from '../services/iconData';
 
 interface SidebarProps {
@@ -13,8 +13,12 @@ interface SidebarProps {
   activeViewType: string;
   onSelectChannel: (channelId: string) => void;
   onSelectCalendar: () => void;
+  onSelectEvents: () => void;
   onOpenCreateTeamModal: () => void;
   onOpenMembersModal: () => void;
+  onOpenProfileModal: () => void;
+  onResetWorkspace: () => void;
+  onClose?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -27,8 +31,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     activeViewType,
     onSelectChannel, 
     onSelectCalendar,
+    onSelectEvents,
     onOpenCreateTeamModal,
-    onOpenMembersModal
+    onOpenMembersModal,
+    onOpenProfileModal,
+    onResetWorkspace,
+    onClose
 }) => {
 
   const renderChannelIcon = (channel: Channel) => {
@@ -66,9 +74,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className="w-64 bg-gray-950 flex flex-col h-full border-r border-gray-800">
-      <div className="p-4 border-b border-gray-800">
-        <h1 className="text-xl font-bold text-white">Club Workspace</h1>
-        <p className="text-sm text-gray-400 truncate">{clubName}</p>
+      <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-white truncate">Club Workspace</h1>
+          <p className="text-sm text-gray-400 truncate">{clubName}</p>
+        </div>
+        <button onClick={onClose} className="md:hidden p-1 -mr-1 text-gray-400 hover:text-white">
+          <X className="h-6 w-6" />
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -96,6 +109,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               <Calendar className="h-5 w-5 text-gray-400" />
               <span>Calendar</span>
+            </a>
+            <a
+              href="#"
+              onClick={(e) => { e.preventDefault(); onSelectEvents(); }}
+              className={`flex items-center space-x-3 px-2 py-2 rounded-md text-sm font-medium ${
+                activeViewType === 'events' ? 'bg-primary-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+              }`}
+            >
+              <Users className="h-5 w-5 text-gray-400" />
+              <span>Events</span>
             </a>
         </div>
         
@@ -163,8 +186,17 @@ const Sidebar: React.FC<SidebarProps> = ({
             <p className="text-sm font-semibold text-white truncate">{currentUser.name}</p>
             <p className="text-xs text-gray-400 truncate">{currentUser.role}</p>
           </div>
-          <div className="flex items-center text-gray-400">
-             <Settings className="h-5 w-5 hover:text-white cursor-pointer"/>
+          <div className="flex items-center text-gray-400 space-x-2">
+             <button 
+                onClick={() => { if(confirm('Are you sure you want to reset the entire workspace? This cannot be undone.')) onResetWorkspace(); }}
+                className="p-1 hover:text-red-400 transition-colors"
+                title="Reset Workspace"
+             >
+                <Plus className="h-5 w-5 rotate-45" />
+             </button>
+             <button onClick={onOpenProfileModal} className="p-1 hover:text-white transition-colors" title="Edit Profile">
+                <Settings className="h-5 w-5"/>
+             </button>
           </div>
         </div>
       </div>

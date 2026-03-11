@@ -8,7 +8,7 @@ interface MembersModalProps {
   currentUser: User;
   users: User[];
   onInviteUser: (email: string) => void;
-  onUpdateUserRole: (userId: string, newRole: Role) => void;
+  onUpdateUserRole: (userId: string, newRole: Role, teamId?: string) => void;
   onMessageUser: (userId: string) => void;
   team?: Team; // The currently active team, if any
   teams: Team[]; // All teams
@@ -29,12 +29,12 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, currentUse
 
   const canEdit = (targetUser: User): boolean => {
     if (currentUser.id === targetUser.id) return false;
-    if (currentUser.role === 'Secretary') return true;
+    if (['Secretary', 'Coordinator'].includes(currentUser.role)) return true;
     return false;
   };
 
   const getDesignation = (user: User): string => {
-    if ((user.role === 'Team Head' || user.role === 'Team Co-Head') && user.teamId) {
+    if ((user.role === 'Team Head' || user.role === 'Team Co-Head' || user.role === 'Member') && user.teamId) {
         const teamName = teams.find(t => t.id === user.teamId)?.name;
         return teamName ? `${teamName} ${user.role}` : user.role;
     }
@@ -51,24 +51,24 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, currentUse
 
   return (
     <div className="fixed inset-0 bg-gray-950 bg-opacity-80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl border border-gray-700 shadow-xl flex flex-col max-h-[90vh]">
+      <div className="bg-gray-800 rounded-lg p-4 md:p-6 w-full max-w-3xl border border-gray-700 shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 className="text-2xl font-bold text-white">{team ? `${team.name} Members` : 'Club Members'}</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-white">{team ? `${team.name} Members` : 'Club Members'}</h2>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700">
             <X className="h-6 w-6 text-gray-400" />
           </button>
         </div>
 
-        {currentUser.role === 'Secretary' && !team && (
-          <form onSubmit={handleInvite} className="flex items-center space-x-2 mb-6 flex-shrink-0">
+        {['Secretary', 'Coordinator'].includes(currentUser.role) && (
+          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-6 flex-shrink-0">
             <input
               type="email"
-              placeholder="Invite new member by email..."
+              placeholder="Invite member by email..."
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              className="flex-1 bg-gray-900 rounded-md py-2 px-3 border border-gray-600 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-white placeholder-gray-500"
+              className="flex-1 bg-gray-900 rounded-md py-2 px-3 border border-gray-600 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-white placeholder-gray-500 text-sm"
             />
-            <button type="submit" className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-600" disabled={!inviteEmail}>
+            <button type="submit" className="flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-600 text-sm" disabled={!inviteEmail}>
               <Send className="h-4 w-4" />
               <span>Invite</span>
             </button>
@@ -78,35 +78,47 @@ const MembersModal: React.FC<MembersModalProps> = ({ isOpen, onClose, currentUse
         <div className="overflow-y-auto pr-2 -mr-2">
           <div className="space-y-3">
             {usersToDisplay.map(user => (
-              <div key={user.id} className="flex items-center justify-between bg-gray-900/50 p-3 rounded-md group hover:bg-gray-800 transition-colors">
-                <div className="flex items-center space-x-3">
+              <div key={user.id} className="flex flex-col lg:flex-row lg:items-center justify-between bg-gray-900/50 p-3 rounded-md group hover:bg-gray-800 transition-colors gap-3">
+                <div className="flex items-center space-x-3 min-w-0">
                   <img src={user.avatarUrl} alt={user.name} className="h-10 w-10 rounded-full" />
-                  <div>
-                    <p className="font-semibold text-white flex items-center gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-white flex items-center gap-2 truncate">
                         {user.name}
-                         {user.id === currentUser.id && <span className="text-xs text-gray-500">(You)</span>}
+                         {user.id === currentUser.id && <span className="text-[10px] text-gray-500">(You)</span>}
                     </p>
-                    <p className="text-xs text-gray-400">{user.email || 'No email'}</p>
+                    <p className="text-xs text-gray-400 truncate">{user.email || 'No email'}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
                   {user.id !== currentUser.id && (
                        <button onClick={() => onMessageUser(user.id)} className="p-2 text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full transition-colors" title="Send Direct Message">
                           <MessageCircle className="h-4 w-4" />
                        </button>
                   )}
                   {canEdit(user) ? (
-                    <select
-                      value={user.role}
-                      onChange={(e) => onUpdateUserRole(user.id, e.target.value as Role)}
-                      className="bg-gray-700 text-white text-sm rounded-md py-1 px-2 border border-gray-600 focus:ring-1 focus:ring-primary-500"
-                    >
-                      {ROLES_HIERARCHY.map(role => (
-                         !['Team Head', 'Team Co-Head'].includes(role) && <option key={role} value={role}>{role}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center space-x-2">
+                      <select
+                        value={user.teamId || ''}
+                        onChange={(e) => onUpdateUserRole(user.id, user.role, e.target.value || undefined)}
+                        className="bg-gray-700 text-white text-[10px] md:text-xs rounded-md py-1 px-2 border border-gray-600 focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="">No Team</option>
+                        {teams.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={user.role}
+                        onChange={(e) => onUpdateUserRole(user.id, e.target.value as Role, user.teamId)}
+                        className="bg-gray-700 text-white text-[10px] md:text-xs rounded-md py-1 px-2 border border-gray-600 focus:ring-1 focus:ring-primary-500"
+                      >
+                        {ROLES_HIERARCHY.map(role => (
+                           <option key={role} value={role}>{role}</option>
+                        ))}
+                      </select>
+                    </div>
                   ) : (
-                     <span className="text-sm font-medium text-gray-300 bg-gray-700 px-3 py-1 rounded-full">{getDesignation(user)}</span>
+                     <span className="text-[10px] md:text-sm font-medium text-gray-300 bg-gray-700 px-2 md:px-3 py-1 rounded-full">{getDesignation(user)}</span>
                   )}
                 </div>
               </div>

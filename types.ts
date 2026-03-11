@@ -37,6 +37,30 @@ export interface Message {
   text: string;
   timestamp: string;
   userId: string;
+  reactions?: { [emoji: string]: string[] }; // emoji -> list of userIds
+  isEdited?: boolean;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  teamId?: string;
+  attendees: string[]; // list of userIds
+  budget?: number;
+  expenses?: Expense[];
+}
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  date: string;
+  userId: string;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export enum TaskStatus {
@@ -55,12 +79,23 @@ export interface Task {
 }
 
 export interface ActiveView {
-  type: 'channel' | 'tasks' | 'apps' | 'calendar';
-  id: string; // channelId
+  type: 'channel' | 'tasks' | 'apps' | 'calendar' | 'events';
+  id: string; // channelId or viewId
 }
 
 export interface AppIntegration {
   name: string;
   iconId: string;
   color: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'task_assignment' | 'task_overdue' | 'mention';
+  read: boolean;
+  timestamp: string;
+  link?: { type: 'channel' | 'tasks' | 'calendar'; id: string };
 }

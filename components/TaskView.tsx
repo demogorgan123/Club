@@ -112,19 +112,19 @@ const TaskView: React.FC<TaskViewProps> = ({ channel, currentUser, team, tasks: 
   const teamMembers = users.filter(u => u.teamId === team.id);
 
   return (
-    <div className="p-8 h-full overflow-y-auto">
+    <div className="p-4 md:p-8 h-full overflow-y-auto">
       <CreateTaskModal 
         isOpen={isCreateModalOpen} 
         onClose={() => setCreateModalOpen(false)} 
         onCreate={handleCreateTask}
         members={teamMembers}
       />
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">{team.name} Tasks</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-xl md:text-2xl font-bold text-white">{team.name} Tasks</h1>
         {canAssignTask && (
           <button 
             onClick={() => setCreateModalOpen(true)}
-            className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-md text-sm transition-colors"
           >
             <Plus className="h-5 w-5"/>
             <span>Assign Task</span>

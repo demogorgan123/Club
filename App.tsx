@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { User, ActiveView, Channel, Team, Task, Role, ChannelType, AppIntegration } from './types';
+import { User, ActiveView, Channel, Team, Task, Role, ChannelType, AppIntegration, Notification, Message, Event } from './types';
 import { initializeWorkspaceData, USER_ID } from './services/mockData';
 import { AVAILABLE_APPS } from './services/appData';
 import { api } from './services/api';
@@ -9,9 +9,13 @@ import ChatView from './components/ChatView';
 import TaskView from './components/TaskView';
 import AppsView from './components/AppsView';
 import CalendarView from './components/CalendarView';
+import EventsView from './components/EventsView';
 import OnboardingScreen from './components/OnboardingScreen';
 import CreateTeamModal from './components/CreateTeamModal';
 import MembersModal from './components/MembersModal';
+import ProfileModal from './components/ProfileModal';
+import NotificationsModal from './components/NotificationsModal';
+import SearchResults from './components/SearchResults';
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -23,12 +27,18 @@ const App: React.FC = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [tasks, setTasks] = useState<{ [teamId: string]: Task[] }>({});
   const [teamApps, setTeamApps] = useState<{ [teamId: string]: AppIntegration[] }>({});
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [allMessages, setAllMessages] = useState<{ [channelId: string]: Message[] }>({});
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [currentUser, setCurrentUser] = useState<User | undefined>(undefined);
   const [activeView, setActiveView] = useState<ActiveView>({ type: 'channel', id: 'general' });
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isSidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [isCreateTeamModalOpen, setCreateTeamModalOpen] = useState(false);
   const [isMembersModalOpen, setMembersModalOpen] = useState(false);
+  const [isProfileModalOpen, setProfileModalOpen] = useState(false);
+  const [isNotificationsModalOpen, setNotificationsModalOpen] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
@@ -42,6 +52,9 @@ const App: React.FC = () => {
           setChannels(data.channels);
           setTasks(data.tasks);
           setTeamApps(data.teamApps);
+          setNotifications(data.notifications || []);
+          setEvents(data.events || []);
+          setAllMessages(data.messages || {});
           setIsInitialized(true);
         }
       } catch (error) {
@@ -71,10 +84,12 @@ const App: React.FC = () => {
         channels,
         tasks,
         teamApps,
+        notifications,
+        events,
         ...updates
     };
     await api.saveData(currentData);
-  }, [clubName, isInitialized, users, teams, channels, tasks, teamApps]);
+  }, [clubName, isInitialized, users, teams, channels, tasks, teamApps, notifications, events]);
 
   const handleGenerateWorkspace = async (name: string, newTeams: { name: string; iconId: string }[], onboardingTeamApps: { [teamName: string]: string[] }) => {
     const initialData = initializeWorkspaceData(newTeams);
@@ -171,14 +186,113 @@ const App: React.FC = () => {
     await syncData({ users: updatedUsers });
   };
 
+  const handleUpdateProfile = async (name: string, role: Role) => {
+    if (!currentUser) return;
+    const updatedUsers = users.map(user => 
+      user.id === currentUser.id ? { ...user, name, role } : user
+    );
+    setUsers(updatedUsers);
+    await syncData({ users: updatedUsers });
+  };
+
   const handleAddTask = async (teamId: string, task: Task) => {
     const updatedTasks = {
         ...tasks,
         [teamId]: [...(tasks[teamId] || []), task]
     };
     setTasks(updatedTasks);
-    await syncData({ tasks: updatedTasks });
+
+    // Create notification for assigned user
+    if (task.assignedTo && task.assignedTo !== currentUser?.id) {
+        const newNotification: Notification = {
+            id: `notif-${Date.now()}`,
+            userId: task.assignedTo,
+            title: 'New Task Assigned',
+            message: `You have been assigned to: ${task.title}`,
+            type: 'task_assignment',
+            read: false,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            link: { type: 'tasks', id: `${teamId}-chat` }
+        };
+        const updatedNotifications = [...notifications, newNotification];
+        setNotifications(updatedNotifications);
+        await syncData({ tasks: updatedTasks, notifications: updatedNotifications });
+    } else {
+        await syncData({ tasks: updatedTasks });
+    }
   };
+
+  const handleCreateNotification = useCallback(async (notif: Omit<Notification, 'id' | 'read' | 'timestamp'>) => {
+      const newNotification: Notification = {
+          ...notif,
+          id: `notif-${Date.now()}`,
+          read: false,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      const updatedNotifications = [...notifications, newNotification];
+      setNotifications(updatedNotifications);
+      await syncData({ notifications: updatedNotifications });
+  }, [notifications, syncData]);
+
+  const handleMarkNotifRead = async (id: string) => {
+      const updatedNotifications = notifications.map(n => n.id === id ? { ...n, read: true } : n);
+      setNotifications(updatedNotifications);
+      await syncData({ notifications: updatedNotifications });
+  };
+
+  const handleMarkAllNotifsRead = async () => {
+      const updatedNotifications = notifications.map(n => ({ ...n, read: true }));
+      setNotifications(updatedNotifications);
+      await syncData({ notifications: updatedNotifications });
+  };
+
+  // Check for overdue tasks
+  useEffect(() => {
+      if (!isInitialized || !currentUser) return;
+
+      const checkOverdue = () => {
+          const now = new Date();
+          const newNotifications: Notification[] = [];
+
+          Object.entries(tasks as { [key: string]: Task[] }).forEach(([teamId, teamTasks]) => {
+              teamTasks.forEach(task => {
+                  if (task.assignedTo === currentUser.id && task.status !== 'Done' && task.dueDate) {
+                      const dueDate = new Date(task.dueDate);
+                      if (dueDate < now) {
+                          // Check if we already notified about this today
+                          const alreadyNotified = notifications.some(n => 
+                              n.type === 'task_overdue' && 
+                              n.message.includes(task.title) &&
+                              new Date(n.timestamp).toDateString() === now.toDateString()
+                          );
+
+                          if (!alreadyNotified) {
+                              newNotifications.push({
+                                  id: `notif-overdue-${task.id}-${Date.now()}`,
+                                  userId: currentUser.id,
+                                  title: 'Task Overdue',
+                                  message: `Task "${task.title}" is overdue!`,
+                                  type: 'task_overdue',
+                                  read: false,
+                                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                  link: { type: 'tasks', id: `${teamId}-chat` }
+                              });
+                          }
+                      }
+                  }
+              });
+          });
+
+          if (newNotifications.length > 0) {
+              setNotifications(prev => [...prev, ...newNotifications]);
+              syncData({ notifications: [...notifications, ...newNotifications] });
+          }
+      };
+
+      checkOverdue();
+      const interval = setInterval(checkOverdue, 1000 * 60 * 60); // Check every hour
+      return () => clearInterval(interval);
+  }, [isInitialized, currentUser, tasks, notifications, syncData]);
   
   const handleOpenDM = async (targetUserId: string) => {
       if (!currentUser) return;
@@ -209,6 +323,42 @@ const App: React.FC = () => {
       if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
+  const handleAddEvent = async (event: Event) => {
+      const updatedEvents = [...events, event];
+      setEvents(updatedEvents);
+      await syncData({ events: updatedEvents });
+  };
+
+  const handleRSVP = async (eventId: string) => {
+      if (!currentUser) return;
+      const updatedEvents = events.map(e => {
+          if (e.id === eventId) {
+              const attendees = e.attendees.includes(currentUser.id)
+                  ? e.attendees.filter(id => id !== currentUser.id)
+                  : [...e.attendees, currentUser.id];
+              return { ...e, attendees };
+          }
+          return e;
+      });
+      setEvents(updatedEvents);
+      await syncData({ events: updatedEvents });
+  };
+
+  const handleUpdateEvent = async (updatedEvent: Event) => {
+      const updatedEvents = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+      setEvents(updatedEvents);
+      await syncData({ events: updatedEvents });
+  };
+
+  const handleSearch = (query: string) => {
+      setSearchQuery(query);
+  };
+
+  const handleResetWorkspace = async () => {
+      await api.resetWorkspace();
+      window.location.reload();
+  };
+
   const availableChannels = useMemo(() => {
     if (!currentUser) return [];
     const directChannels = channels.filter(c => c.type === ChannelType.DIRECT && c.memberIds?.includes(currentUser.id));
@@ -232,11 +382,30 @@ const App: React.FC = () => {
     if (activeView.type === 'calendar') {
         return <CalendarView tasks={tasks} teams={teams} users={users} />;
     }
+    if (activeView.type === 'events') {
+        return (
+            <EventsView 
+                events={events} 
+                currentUser={currentUser} 
+                teams={teams} 
+                onAddEvent={handleAddEvent} 
+                onRSVP={handleRSVP} 
+                onUpdateEvent={handleUpdateEvent}
+            />
+        );
+    }
     if (!activeChannel) return <div className="p-8 text-gray-400">Select a channel...</div>;
     
     switch (activeView.type) {
       case 'channel':
-        return <ChatView channel={activeChannel} currentUser={currentUser} allUsers={users} />;
+        return (
+            <ChatView 
+                channel={activeChannel} 
+                currentUser={currentUser} 
+                allUsers={users} 
+                onCreateNotification={handleCreateNotification}
+            />
+        );
       case 'tasks':
         return (
             <TaskView 
@@ -268,7 +437,14 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-gray-900 font-sans">
+    <div className="flex h-screen w-full bg-gray-900 font-sans overflow-hidden">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-20 md:hidden backdrop-blur-sm transition-opacity" 
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       <CreateTeamModal
         isOpen={isCreateTeamModalOpen}
         onClose={() => setCreateTeamModalOpen(false)}
@@ -308,8 +484,15 @@ const App: React.FC = () => {
               setActiveView({ type: 'calendar', id: 'calendar' });
               if (window.innerWidth < 768) setSidebarOpen(false);
           }}
+          onSelectEvents={() => {
+              setActiveView({ type: 'events', id: 'events' });
+              if (window.innerWidth < 768) setSidebarOpen(false);
+          }}
           onOpenCreateTeamModal={() => setCreateTeamModalOpen(true)}
           onOpenMembersModal={() => setMembersModalOpen(true)}
+          onOpenProfileModal={() => setProfileModalOpen(true)}
+          onResetWorkspace={handleResetWorkspace}
+          onClose={() => setSidebarOpen(false)}
         />
       </div>
       <main className="flex-1 flex flex-col min-w-0">
@@ -322,11 +505,46 @@ const App: React.FC = () => {
           users={users}
           onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
           onOpenMembersModal={() => setMembersModalOpen(true)}
+          onOpenProfileModal={() => setProfileModalOpen(true)}
+          notifications={notifications.filter(n => n.userId === currentUser.id)}
+          onOpenNotifications={() => setNotificationsModalOpen(true)}
+          onSearch={handleSearch}
         />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative">
+          {searchQuery && (
+              <SearchResults 
+                query={searchQuery}
+                users={users}
+                messages={allMessages}
+                tasks={tasks}
+                events={events}
+                channels={channels}
+                onNavigate={(type, id) => {
+                    setActiveView({ type, id });
+                    setSearchQuery('');
+                }}
+                onClose={() => setSearchQuery('')}
+              />
+          )}
           {renderActiveView()}
         </div>
       </main>
+      <ProfileModal 
+        isOpen={isProfileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        currentUser={currentUser}
+        onUpdateProfile={handleUpdateProfile}
+      />
+      <NotificationsModal 
+        isOpen={isNotificationsModalOpen}
+        onClose={() => setNotificationsModalOpen(false)}
+        notifications={notifications.filter(n => n.userId === currentUser.id)}
+        onMarkAsRead={handleMarkNotifRead}
+        onMarkAllAsRead={handleMarkAllNotifsRead}
+        onNavigate={(link) => {
+            setActiveView({ type: link.type, id: link.id });
+        }}
+      />
     </div>
   );
 };

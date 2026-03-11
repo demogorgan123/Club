@@ -1,3 +1,4 @@
+import React from 'react';
 import { FileText, FileSpreadsheet, Presentation, FolderOpen, Map, Image as ImageIcon, Github, Instagram, Linkedin, Twitter, ClipboardList, Calendar, Palette as PaletteIcon } from 'lucide-react';
 import { AppIntegration } from '../types';
 
