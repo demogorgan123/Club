@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Channel, Team, User, ChannelType } from '../types';
 import { Hash, MessageSquare, ListTodo, AppWindow, Menu, Users, MessageCircle } from 'lucide-react';
+import { getTeamIcon } from '../services/iconData';
 
 interface HeaderProps {
   channel?: Channel;
@@ -53,7 +54,10 @@ const Header: React.FC<HeaderProps> = ({ channel, team, activeViewType, onViewCh
 
       return (
         <div className="flex items-center space-x-2">
-            {team?.icon ? <team.icon className="h-6 w-6 text-gray-400" /> : <Hash className="h-6 w-6 text-gray-400" />}
+            {team ? (() => {
+                const Icon = getTeamIcon(team.iconId);
+                return <Icon className="h-6 w-6 text-gray-400" />;
+            })() : <Hash className="h-6 w-6 text-gray-400" />}
             <h2 className="text-xl font-bold text-white">{channel.name}</h2>
         </div>
       );

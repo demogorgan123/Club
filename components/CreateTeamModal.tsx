@@ -1,21 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { User } from '../types';
 import { X } from 'lucide-react';
-import { TEAM_ICONS } from '../services/iconData';
+import { TEAM_ICONS, getTeamIcon } from '../services/iconData';
 
 
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (teamName: string, headId: string, coHead1Id: string, coHead2Id: string, icon: React.ElementType) => void;
+  onCreate: (teamName: string, headId: string, coHead1Id: string, coHead2Id: string, iconId: string) => void;
   users: User[];
 }
 
-const IconPicker: React.FC<{ onSelect: (icon: React.ElementType) => void; onClose: () => void }> = ({ onSelect, onClose }) => (
+const IconPicker: React.FC<{ onSelect: (iconId: string) => void; onClose: () => void }> = ({ onSelect, onClose }) => (
     <div className="absolute top-full mt-2 left-0 bg-gray-800 rounded-lg p-4 w-64 border border-gray-700 shadow-xl z-10">
         <div className="grid grid-cols-5 gap-2">
             {TEAM_ICONS.map(iconInfo => (
-                <button key={iconInfo.id} onClick={() => onSelect(iconInfo.icon)} className="flex items-center justify-center p-2 bg-gray-900 rounded-md hover:bg-primary-600 text-gray-400 hover:text-white transition-colors">
+                <button key={iconInfo.id} onClick={() => onSelect(iconInfo.id)} className="flex items-center justify-center p-2 bg-gray-900 rounded-md hover:bg-primary-600 text-gray-400 hover:text-white transition-colors">
                     <iconInfo.icon className="h-5 w-5" />
                 </button>
             ))}
@@ -29,9 +29,7 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCr
   const [headId, setHeadId] = useState('');
   const [coHead1Id, setCoHead1Id] = useState('');
   const [coHead2Id, setCoHead2Id] = useState('');
-  // FIX: Explicitly type useState to store a component (`React.ElementType`).
-  // This prevents React from misinterpreting the component as a lazy initializer and executing it.
-  const [selectedIcon, setSelectedIcon] = useState<React.ElementType>(TEAM_ICONS[0].icon);
+  const [selectedIconId, setSelectedIconId] = useState<string>(TEAM_ICONS[0].id);
   const [isIconPickerOpen, setIconPickerOpen] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,8 +37,8 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCr
     return users.filter(u => u.role === 'Member');
   }, [users]);
   
-  const handleSelectIcon = (icon: React.ElementType) => {
-    setSelectedIcon(icon);
+  const handleSelectIcon = (iconId: string) => {
+    setSelectedIconId(iconId);
     setIconPickerOpen(false);
   }
 
@@ -59,18 +57,18 @@ const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClose, onCr
       return;
     }
 
-    onCreate(teamName, headId, coHead1Id, coHead2Id, selectedIcon);
+    onCreate(teamName, headId, coHead1Id, coHead2Id, selectedIconId);
     // Reset form and close
     setTeamName('');
     setHeadId('');
     setCoHead1Id('');
     setCoHead2Id('');
-    setSelectedIcon(TEAM_ICONS[0].icon);
+    setSelectedIconId(TEAM_ICONS[0].id);
     onClose();
   };
 
   if (!isOpen) return null;
-  const SelectedIcon = selectedIcon;
+  const SelectedIcon = getTeamIcon(selectedIconId);
 
   return (
     <div className="fixed inset-0 bg-gray-950 bg-opacity-75 flex items-center justify-center z-50">

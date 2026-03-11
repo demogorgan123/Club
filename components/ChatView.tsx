@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Channel, User, Message } from '../types';
-import { getMessagesForChannel } from '../services/mockData';
-import { Paperclip, SendHorizonal, Smile } from 'lucide-react';
+import { api } from '../services/api';
+import { Paperclip, SendHorizonal, Smile, Loader } from 'lucide-react';
 
 interface ChatViewProps {
   channel: Channel;
@@ -10,19 +10,38 @@ interface ChatViewProps {
 }
 
 const ChatView: React.FC<ChatViewProps> = ({ channel, currentUser, allUsers }) => {
-  const [messages, setMessages] = useState<Message[]>(getMessagesForChannel(channel.id));
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const fetchMessages = async () => {
+    try {
+      const data = await api.getData();
+      if (data && data.messages) {
+        setMessages(data.messages[channel.id] || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setMessages(getMessagesForChannel(channel.id));
+    setIsLoading(true);
+    fetchMessages();
+    
+    // Polling for new messages every 3 seconds
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
   }, [channel.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim() === '') return;
     
@@ -33,8 +52,16 @@ const ChatView: React.FC<ChatViewProps> = ({ channel, currentUser, allUsers }) =
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages([...messages, message]);
+    // Optimistic update
+    setMessages(prev => [...prev, message]);
     setNewMessage('');
+
+    try {
+        await api.addMessage(channel.id, message);
+    } catch (error) {
+        console.error('Failed to send message:', error);
+        // Rollback or show error
+    }
   };
 
   const getUserById = (userId: string) => allUsers.find(u => u.id === userId);
@@ -42,28 +69,34 @@ const ChatView: React.FC<ChatViewProps> = ({ channel, currentUser, allUsers }) =
   return (
     <div className="flex flex-col h-full bg-gray-900">
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {messages.map((message, index) => {
-          const sender = getUserById(message.userId);
-          const prevMessage = messages[index - 1];
-          const showHeader = !prevMessage || prevMessage.userId !== message.userId;
-
-          return sender ? (
-            <div key={message.id} className={`flex items-start space-x-4 ${!showHeader ? 'mt-1' : 'mt-4'}`}>
-              <div className="w-10 h-10">
-                {showHeader && <img src={sender.avatarUrl} alt={sender.name} className="h-10 w-10 rounded-full" />}
-              </div>
-              <div className="flex-1">
-                {showHeader && (
-                  <div className="flex items-baseline space-x-2 mb-1">
-                    <p className="font-bold text-white">{sender.name}</p>
-                    <p className="text-xs text-gray-500">{message.timestamp}</p>
-                  </div>
-                )}
-                <p className="text-gray-200">{message.text}</p>
-              </div>
+        {isLoading && messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+                <Loader className="animate-spin h-8 w-8 text-primary-500" />
             </div>
-          ) : null;
-        })}
+        ) : (
+            messages.map((message, index) => {
+                const sender = getUserById(message.userId);
+                const prevMessage = messages[index - 1];
+                const showHeader = !prevMessage || prevMessage.userId !== message.userId;
+      
+                return sender ? (
+                  <div key={message.id} className={`flex items-start space-x-4 ${!showHeader ? 'mt-1' : 'mt-4'}`}>
+                    <div className="w-10 h-10">
+                      {showHeader && <img src={sender.avatarUrl} alt={sender.name} className="h-10 w-10 rounded-full" />}
+                    </div>
+                    <div className="flex-1">
+                      {showHeader && (
+                        <div className="flex items-baseline space-x-2 mb-1">
+                          <p className="font-bold text-white">{sender.name}</p>
+                          <p className="text-xs text-gray-500">{message.timestamp}</p>
+                        </div>
+                      )}
+                      <p className="text-gray-200">{message.text}</p>
+                    </div>
+                  </div>
+                ) : null;
+            })
+        )}
         <div ref={messagesEndRef} />
       </div>
 

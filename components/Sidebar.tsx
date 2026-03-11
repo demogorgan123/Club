@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Channel, Team, ChannelType } from '../types';
 import { Hash, Megaphone, Settings, Plus, Calendar, MessageCircle } from 'lucide-react';
+import { getTeamIcon } from '../services/iconData';
 
 interface SidebarProps {
   clubName: string;
@@ -39,7 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
     if (channel.type === ChannelType.TEAM) {
       const team = teams.find(t => t.id === channel.teamId);
-      const Icon = team?.icon;
+      const Icon = team ? getTeamIcon(team.iconId) : null;
       return Icon ? <Icon className="h-5 w-5 text-gray-400" /> : <Hash className="h-5 w-5 text-gray-400" />;
     }
     if (channel.type === ChannelType.DIRECT) {

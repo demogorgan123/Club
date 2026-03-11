@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Loader, X, Plus, ChevronLeft, Check, Smile } from 'lucide-react';
 import { clubData, ClubType, getTeamsForClubType } from '../services/clubData';
-import { AVAILABLE_APPS } from '../services/appData';
-import { TEAM_ICONS } from '../services/iconData';
+import { AVAILABLE_APPS, getAppIcon } from '../services/appData';
+import { TEAM_ICONS, getTeamIcon } from '../services/iconData';
 
 interface OnboardingScreenProps {
-  onGenerateWorkspace: (clubName: string, teams: { name: string; icon: React.ElementType }[], teamApps: { [teamName: string]: string[] }) => void;
+  onGenerateWorkspace: (clubName: string, teams: { name: string; iconId: string }[], teamApps: { [teamName: string]: string[] }) => void;
 }
 
 interface OnboardingTeam {
     name: string;
-    icon: React.ElementType;
+    iconId: string;
 }
 
 const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
@@ -27,7 +27,7 @@ const ProgressBar: React.FC<{ step: number }> = ({ step }) => (
     </div>
 );
 
-const IconPickerModal: React.FC<{ onSelect: (icon: React.ElementType) => void; onClose: () => void }> = ({ onSelect, onClose }) => (
+const IconPickerModal: React.FC<{ onSelect: (iconId: string) => void; onClose: () => void }> = ({ onSelect, onClose }) => (
     <div className="fixed inset-0 bg-gray-950 bg-opacity-75 flex items-center justify-center z-50">
         <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
             <div className="flex justify-between items-center mb-4">
@@ -36,7 +36,7 @@ const IconPickerModal: React.FC<{ onSelect: (icon: React.ElementType) => void; o
             </div>
             <div className="grid grid-cols-6 gap-4">
                 {TEAM_ICONS.map(iconInfo => (
-                    <button key={iconInfo.id} onClick={() => onSelect(iconInfo.icon)} className="flex items-center justify-center p-3 bg-gray-900 rounded-md hover:bg-primary-600 text-gray-400 hover:text-white transition-colors">
+                    <button key={iconInfo.id} onClick={() => onSelect(iconInfo.id)} className="flex items-center justify-center p-3 bg-gray-900 rounded-md hover:bg-primary-600 text-gray-400 hover:text-white transition-colors">
                         <iconInfo.icon className="h-6 w-6" />
                     </button>
                 ))}
@@ -71,7 +71,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
     setSelectedClub(club);
     setTeams(getTeamsForClubType(club.name).map((name, index) => ({
         name,
-        icon: TEAM_ICONS[index % TEAM_ICONS.length].icon
+        iconId: TEAM_ICONS[index % TEAM_ICONS.length].id
     })));
     setStep(3);
   };
@@ -103,13 +103,13 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
   };
   
   const handleAddTeam = () => {
-    setTeams([...teams, { name: 'New Team', icon: Smile }]);
+    setTeams([...teams, { name: 'New Team', iconId: 'smile' }]);
   };
 
-  const handleSelectIcon = (icon: React.ElementType) => {
+  const handleSelectIcon = (iconId: string) => {
     if (pickingIconFor !== null) {
         const newTeams = [...teams];
-        newTeams[pickingIconFor] = { ...newTeams[pickingIconFor], icon };
+        newTeams[pickingIconFor] = { ...newTeams[pickingIconFor], iconId };
         setTeams(newTeams);
         setPickingIconFor(null);
     }
@@ -193,7 +193,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
             <p className="text-lg text-gray-400 mb-10">We've suggested some teams based on your club type. Edit them as you see fit.</p>
             <div className="space-y-4">
               {teams.map((team, index) => {
-                const Icon = team.icon;
+                const Icon = getTeamIcon(team.iconId);
                 return (
                     <div key={index} className="flex items-center space-x-3">
                       <button type="button" onClick={() => setPickingIconFor(index)} className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-primary-500 text-gray-300 hover:text-primary-400 transition-colors">
@@ -239,9 +239,10 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                  {AVAILABLE_APPS.map(app => {
                                      const isSelected = teamApps[team.name]?.includes(app.name);
+                                     const AppIcon = getAppIcon(app.iconId);
                                      return (
                                          <button type="button" key={app.name} onClick={() => handleToggleApp(team.name, app.name)} className={`relative flex items-center space-x-3 text-left p-4 rounded-lg border transition-colors ${isSelected ? 'bg-primary-900/50 border-primary-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}>
-                                             <app.icon className={`h-6 w-6 ${app.color}`} />
+                                             <AppIcon className={`h-6 w-6 ${app.color}`} />
                                              <span className="font-medium text-white">{app.name}</span>
                                              {isSelected && <Check className="absolute top-2 right-2 h-5 w-5 text-primary-400" />}
                                          </button>

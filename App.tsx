@@ -1,19 +1,21 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { User, ActiveView, Channel, Team, Task, Role, ChannelType, AppIntegration } from './types';
 import { initializeWorkspaceData, USER_ID } from './services/mockData';
 import { AVAILABLE_APPS } from './services/appData';
+import { api } from './services/api';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import ChatView from './components/ChatView';
 import TaskView from './components/TaskView';
 import AppsView from './components/AppsView';
-import CalendarView from './components/CalendarView'; // Import new component
+import CalendarView from './components/CalendarView';
 import OnboardingScreen from './components/OnboardingScreen';
 import CreateTeamModal from './components/CreateTeamModal';
 import MembersModal from './components/MembersModal';
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [clubName, setClubName] = useState('');
 
   const [users, setUsers] = useState<User[]>([]);
@@ -28,43 +30,89 @@ const App: React.FC = () => {
   const [isCreateTeamModalOpen, setCreateTeamModalOpen] = useState(false);
   const [isMembersModalOpen, setMembersModalOpen] = useState(false);
 
+  // Fetch initial data
   useEffect(() => {
-    // The user who creates the workspace is always user-1, the Secretary
+    const fetchData = async () => {
+      try {
+        const data = await api.getData();
+        if (data && data.isInitialized) {
+          setClubName(data.clubName);
+          setUsers(data.users);
+          setTeams(data.teams);
+          setChannels(data.channels);
+          setTasks(data.tasks);
+          setTeamApps(data.teamApps);
+          setIsInitialized(true);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
     const creator = users.find(u => u.id === USER_ID);
     if(creator){
-      setCurrentUser({...creator, role: 'Secretary'});
+      setCurrentUser({...creator, role: creator.role === 'Member' ? 'Secretary' : creator.role });
     } else {
       setCurrentUser(users.find(u => u.id === USER_ID));
     }
   }, [users]);
 
-  const handleGenerateWorkspace = (name: string, newTeams: { name: string; icon: React.ElementType }[], onboardingTeamApps: { [teamName: string]: string[] }) => {
+  const syncData = useCallback(async (updates: any) => {
+    const currentData = {
+        clubName,
+        isInitialized,
+        users,
+        teams,
+        channels,
+        tasks,
+        teamApps,
+        ...updates
+    };
+    await api.saveData(currentData);
+  }, [clubName, isInitialized, users, teams, channels, tasks, teamApps]);
+
+  const handleGenerateWorkspace = async (name: string, newTeams: { name: string; iconId: string }[], onboardingTeamApps: { [teamName: string]: string[] }) => {
     const initialData = initializeWorkspaceData(newTeams);
     
-    setClubName(name);
-    setUsers(initialData.users);
-    setTeams(initialData.teams);
-    setChannels(initialData.channels);
-    setTasks(initialData.tasks);
-
-    // Map onboarding apps to full AppIntegration objects and by team ID
     const newTeamApps: { [teamId: string]: AppIntegration[] } = {};
     initialData.teams.forEach(team => {
         const appNames = onboardingTeamApps[team.name] || [];
         newTeamApps[team.id] = AVAILABLE_APPS.filter(app => appNames.includes(app.name));
     });
+
+    const data = {
+        clubName: name,
+        isInitialized: true,
+        users: initialData.users,
+        teams: initialData.teams,
+        channels: initialData.channels,
+        tasks: initialData.tasks,
+        teamApps: newTeamApps
+    };
+
+    setClubName(name);
+    setUsers(data.users);
+    setTeams(data.teams);
+    setChannels(data.channels);
+    setTasks(data.tasks);
     setTeamApps(newTeamApps);
-    
     setIsInitialized(true);
+
+    await api.saveData(data);
   };
 
-  const handleCreateTeam = (teamName: string, headId: string, coHead1Id: string, coHead2Id: string, icon: React.ElementType) => {
+  const handleCreateTeam = async (teamName: string, headId: string, coHead1Id: string, coHead2Id: string, iconId: string) => {
     const newTeamId = teamName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     
     const newTeam: Team = {
       id: newTeamId,
       name: teamName,
-      icon: icon,
+      iconId: iconId,
     };
     
     const newChannel: Channel = {
@@ -80,14 +128,27 @@ const App: React.FC = () => {
       return user;
     });
 
-    setTeams(prev => [...prev, newTeam]);
-    setChannels(prev => [...prev, newChannel]);
+    const updatedTeams = [...teams, newTeam];
+    const updatedChannels = [...channels, newChannel];
+    const updatedTasks = {...tasks, [newTeamId]: []};
+    const updatedTeamApps = {...teamApps, [newTeamId]: AVAILABLE_APPS.slice(0, 4)};
+
+    setTeams(updatedTeams);
+    setChannels(updatedChannels);
     setUsers(updatedUsers);
-    setTasks(prev => ({...prev, [newTeamId]: []}));
-    setTeamApps(prev => ({...prev, [newTeamId]: AVAILABLE_APPS.slice(0, 4)}));
+    setTasks(updatedTasks);
+    setTeamApps(updatedTeamApps);
+
+    await syncData({
+        teams: updatedTeams,
+        channels: updatedChannels,
+        users: updatedUsers,
+        tasks: updatedTasks,
+        teamApps: updatedTeamApps
+    });
   };
 
-  const handleInviteUser = (email: string) => {
+  const handleInviteUser = async (email: string) => {
     const newUserId = `user-${Date.now()}`;
     const userName = email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     const newUser: User = {
@@ -97,23 +158,29 @@ const App: React.FC = () => {
       role: 'Member',
       email: email,
     };
-    setUsers(prev => [...prev, newUser]);
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    await syncData({ users: updatedUsers });
   };
 
-  const handleUpdateUserRole = (userId: string, newRole: Role, teamId?: string) => {
-    setUsers(prevUsers => prevUsers.map(user => 
+  const handleUpdateUserRole = async (userId: string, newRole: Role, teamId?: string) => {
+    const updatedUsers = users.map(user => 
       user.id === userId ? { ...user, role: newRole, teamId: teamId || user.teamId } : user
-    ));
+    );
+    setUsers(updatedUsers);
+    await syncData({ users: updatedUsers });
   };
 
-  const handleAddTask = (teamId: string, task: Task) => {
-    setTasks(prev => ({
-        ...prev,
-        [teamId]: [...(prev[teamId] || []), task]
-    }));
+  const handleAddTask = async (teamId: string, task: Task) => {
+    const updatedTasks = {
+        ...tasks,
+        [teamId]: [...(tasks[teamId] || []), task]
+    };
+    setTasks(updatedTasks);
+    await syncData({ tasks: updatedTasks });
   };
   
-  const handleOpenDM = (targetUserId: string) => {
+  const handleOpenDM = async (targetUserId: string) => {
       if (!currentUser) return;
       
       const memberIds = [currentUser.id, targetUserId].sort();
@@ -127,15 +194,16 @@ const App: React.FC = () => {
       if (existingChannel) {
           setActiveView({ type: 'channel', id: existingChannel.id });
       } else {
-          // Create new DM channel
           const newChannel: Channel = {
               id: `dm-${memberIds.join('-')}`,
               name: `dm-${memberIds.join('-')}`,
               type: ChannelType.DIRECT,
               memberIds: memberIds
           };
-          setChannels(prev => [...prev, newChannel]);
+          const updatedChannels = [...channels, newChannel];
+          setChannels(updatedChannels);
           setActiveView({ type: 'channel', id: newChannel.id });
+          await syncData({ channels: updatedChannels });
       }
       setMembersModalOpen(false);
       if (window.innerWidth < 768) setSidebarOpen(false);
@@ -143,11 +211,7 @@ const App: React.FC = () => {
 
   const availableChannels = useMemo(() => {
     if (!currentUser) return [];
-    
-    // For direct messages, always show ones where the user is a member
     const directChannels = channels.filter(c => c.type === ChannelType.DIRECT && c.memberIds?.includes(currentUser.id));
-    
-    // Regular channels
     let regularChannels: Channel[] = [];
     if (['Secretary', 'Coordinator', 'Joint Coordinator'].includes(currentUser.role)) {
       regularChannels = channels.filter(c => c.type !== ChannelType.DIRECT);
@@ -156,7 +220,6 @@ const App: React.FC = () => {
           c.type !== ChannelType.DIRECT && (c.type !== 'team' || c.teamId === currentUser.teamId)
       );
     }
-    
     return [...regularChannels, ...directChannels];
   }, [currentUser, channels]);
   
@@ -166,12 +229,10 @@ const App: React.FC = () => {
 
   const renderActiveView = () => {
     if (!currentUser) return <div className="p-8">Loading...</div>;
-    
     if (activeView.type === 'calendar') {
         return <CalendarView tasks={tasks} teams={teams} users={users} />;
     }
-
-    if (!activeChannel) return <div className="p-8">Select a channel...</div>;
+    if (!activeChannel) return <div className="p-8 text-gray-400">Select a channel...</div>;
     
     switch (activeView.type) {
       case 'channel':
@@ -194,12 +255,16 @@ const App: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return <div className="h-screen w-full flex items-center justify-center bg-gray-950"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary-500"></div></div>;
+  }
+
   if (!isInitialized) {
     return <OnboardingScreen onGenerateWorkspace={handleGenerateWorkspace} />;
   }
 
   if (!currentUser) {
-    return <div>Loading user...</div>;
+    return <div className="h-screen w-full flex items-center justify-center bg-gray-950 text-white">User not found. Please refresh.</div>;
   }
 
   return (

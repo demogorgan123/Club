@@ -32,3 +32,7 @@ export const TEAM_ICONS: IconInfo[] = [
     { id: 'rocket', icon: Rocket },
     { id: 'newspaper', icon: Newspaper },
 ];
+
+export const getTeamIcon = (iconId: string) => {
+    return TEAM_ICONS.find(i => i.id === iconId)?.icon || TEAM_ICONS[0].icon;
+};

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Channel, AppIntegration } from '../types';
 
+import { getAppIcon } from '../services/appData';
+
 interface AppsViewProps {
   channel: Channel;
   apps: AppIntegration[];
@@ -18,17 +20,20 @@ const AppsView: React.FC<AppsViewProps> = ({ channel, apps }) => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-        {apps.map((app) => (
-          <a
-            key={app.name}
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            className="group flex flex-col items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-primary-500 rounded-lg p-6 text-center transition-all duration-200 aspect-square"
-          >
-            <app.icon className={`h-12 w-12 mb-4 transition-colors ${app.color} group-hover:text-white`} />
-            <span className="font-semibold text-white">{app.name}</span>
-          </a>
-        ))}
+        {apps.map((app) => {
+          const AppIcon = getAppIcon(app.iconId);
+          return (
+            <a
+              key={app.name}
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="group flex flex-col items-center justify-center bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-primary-500 rounded-lg p-6 text-center transition-all duration-200 aspect-square"
+            >
+              <AppIcon className={`h-12 w-12 mb-4 transition-colors ${app.color} group-hover:text-white`} />
+              <span className="font-semibold text-white">{app.name}</span>
+            </a>
+          );
+        })}
          {apps.length === 0 && (
           <div className="col-span-full text-center py-16 text-gray-500 border-2 border-dashed border-gray-700 rounded-lg">
             No apps or tools have been configured for this team.

@@ -1,12 +1,12 @@
 import { User, Team, Channel, Message, Task, ChannelType, TaskStatus } from '../types';
 
 // A pool of icons to be assigned to new teams
-export const initializeWorkspaceData = (teamsToCreate: { name: string; icon: React.ElementType }[]) => {
+export const initializeWorkspaceData = (teamsToCreate: { name: string; iconId: string }[]) => {
 
     const teams: Team[] = teamsToCreate.map((teamData) => ({
       id: teamData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
       name: teamData.name,
-      icon: teamData.icon,
+      iconId: teamData.iconId,
     }));
 
     // FIX: Added email addresses to mock user data.

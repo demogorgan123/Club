@@ -14,7 +14,7 @@ export interface User {
 export interface Team {
   id: string;
   name: string;
-  icon: React.ElementType;
+  iconId: string;
 }
 
 export enum ChannelType {
@@ -61,6 +61,6 @@ export interface ActiveView {
 
 export interface AppIntegration {
   name: string;
-  icon: React.ElementType;
+  iconId: string;
   color: string;
 }
