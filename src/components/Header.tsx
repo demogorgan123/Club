@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Channel, Team, User, ChannelType } from '../types';
 import { Hash, MessageSquare, ListTodo, AppWindow, Menu, Users, MessageCircle, Bell, Search } from 'lucide-react';
-import { getTeamIcon } from '../services/iconData';
+import { getTeamIcon } from '../constants';
 
 interface HeaderProps {
   channel?: Channel;

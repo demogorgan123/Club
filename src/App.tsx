@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { User, ActiveView, Channel, Team, Task, Role, ChannelType, AppIntegration, Notification, Message, Event } from './types';
-import { AVAILABLE_APPS } from './services/appData';
+import { AVAILABLE_APPS_LIST } from './constants';
 import { api } from './services/api';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -93,7 +93,7 @@ const App: React.FC = () => {
   }, [clubName, isInitialized, users, teams, channels, tasks, teamApps, notifications, events]);
 
   const handleGenerateWorkspace = async (name: string, newTeams: { name: string; iconId: string }[], onboardingTeamApps: { [teamName: string]: string[] }) => {
-    // Initialize workspace data locally instead of using mockData
+    // Initialize workspace data
     const initialTeams: Team[] = newTeams.map((teamData) => ({
       id: teamData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
       name: teamData.name,
@@ -126,7 +126,7 @@ const App: React.FC = () => {
     const newTeamApps: { [teamId: string]: AppIntegration[] } = {};
     initialTeams.forEach(team => {
         const appNames = onboardingTeamApps[team.name] || [];
-        newTeamApps[team.id] = AVAILABLE_APPS.filter(app => appNames.includes(app.name));
+        newTeamApps[team.id] = AVAILABLE_APPS_LIST.filter(app => appNames.includes(app.name));
     });
 
     const data = {
@@ -175,7 +175,7 @@ const App: React.FC = () => {
     const updatedTeams = [...teams, newTeam];
     const updatedChannels = [...channels, newChannel];
     const updatedTasks = {...tasks, [newTeamId]: []};
-    const updatedTeamApps = {...teamApps, [newTeamId]: AVAILABLE_APPS.slice(0, 4)};
+    const updatedTeamApps = {...teamApps, [newTeamId]: AVAILABLE_APPS_LIST.slice(0, 4)};
 
     setTeams(updatedTeams);
     setChannels(updatedChannels);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Channel, AppIntegration } from '../types';
 
-import { getAppIcon } from '../services/appData';
+import { getAppIconById } from '../constants';
 
 interface AppsViewProps {
   channel: Channel;
@@ -21,7 +21,7 @@ const AppsView: React.FC<AppsViewProps> = ({ channel, apps }) => {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
         {apps.map((app) => {
-          const AppIcon = getAppIcon(app.iconId);
+          const AppIcon = getAppIconById(app.iconId);
           return (
             <a
               key={app.name}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, Channel, Team, ChannelType } from '../types';
 import { Hash, Megaphone, Settings, Plus, Calendar, MessageCircle, X, Users } from 'lucide-react';
-import { getTeamIcon } from '../services/iconData';
+import { getTeamIcon } from '../constants';
 
 interface SidebarProps {
   clubName: string;

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader, X, Plus, ChevronLeft, Check, Smile } from 'lucide-react';
-import { clubData, ClubType, getTeamsForClubType } from '../services/clubData';
-import { AVAILABLE_APPS, getAppIcon } from '../services/appData';
-import { TEAM_ICONS, getTeamIcon } from '../services/iconData';
+import { CLUB_CATEGORIES, ClubType, getTeamsByClubName, AVAILABLE_APPS_LIST, getAppIconById, TEAM_ICONS, getTeamIcon } from '../constants';
 
 interface OnboardingScreenProps {
   onGenerateWorkspace: (clubName: string, teams: { name: string; iconId: string }[], teamApps: { [teamName: string]: string[] }) => void;
@@ -61,7 +59,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
     const initialApps: { [teamName: string]: string[] } = {};
     teams.forEach(team => {
         // Default to the first 4 apps
-        initialApps[team.name] = AVAILABLE_APPS.slice(0, 4).map(app => app.name);
+        initialApps[team.name] = AVAILABLE_APPS_LIST.slice(0, 4).map(app => app.name);
     });
     setTeamApps(initialApps);
   }, [teams]);
@@ -69,7 +67,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
 
   const handleSelectClub = (club: ClubType) => {
     setSelectedClub(club);
-    setTeams(getTeamsForClubType(club.name).map((name, index) => ({
+    setTeams(getTeamsByClubName(club.name).map((name, index) => ({
         name,
         iconId: TEAM_ICONS[index % TEAM_ICONS.length].id
     })));
@@ -165,7 +163,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
             <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">What type of club is it?</h1>
             <p className="text-base md:text-lg text-gray-400 mb-6 md:mb-10 text-center">Select a category that best describes your club's activities.</p>
             <div className="space-y-8">
-                {clubData.map((category) => (
+                {CLUB_CATEGORIES.map((category) => (
                     <div key={category.name}>
                         <h2 className="text-xl font-semibold text-white mb-4 text-left">{category.name}</h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -237,9 +235,9 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onGenerateWorkspace
                          <div key={team.name}>
                              <h2 className="text-xl font-semibold text-white mb-4 text-left">{team.name}</h2>
                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                                 {AVAILABLE_APPS.map(app => {
+                                 {AVAILABLE_APPS_LIST.map(app => {
                                      const isSelected = teamApps[team.name]?.includes(app.name);
-                                     const AppIcon = getAppIcon(app.iconId);
+                                     const AppIcon = getAppIconById(app.iconId);
                                      return (
                                          <button type="button" key={app.name} onClick={() => handleToggleApp(team.name, app.name)} className={`relative flex items-center space-x-3 text-left p-3 md:p-4 rounded-lg border transition-colors ${isSelected ? 'bg-primary-900/50 border-primary-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}>
                                              <AppIcon className={`h-5 w-5 md:h-6 md:w-6 ${app.color}`} />

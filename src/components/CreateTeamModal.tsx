@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { User } from '../types';
 import { X } from 'lucide-react';
-import { TEAM_ICONS, getTeamIcon } from '../services/iconData';
+import { TEAM_ICONS, getTeamIcon } from '../constants';
 
 
 interface CreateTeamModalProps {
