@@ -195,6 +195,11 @@ const App: React.FC = () => {
     await syncData({ users: updatedUsers });
   };
 
+  const handleResetWorkspace = async () => {
+    await api.resetWorkspace();
+    window.location.reload();
+  };
+
   const handleAddTask = async (teamId: string, task: Task) => {
     const updatedTasks = {
         ...tasks,
@@ -352,11 +357,6 @@ const App: React.FC = () => {
 
   const handleSearch = (query: string) => {
       setSearchQuery(query);
-  };
-
-  const handleResetWorkspace = async () => {
-      await api.resetWorkspace();
-      window.location.reload();
   };
 
   const availableChannels = useMemo(() => {
@@ -534,6 +534,7 @@ const App: React.FC = () => {
         onClose={() => setProfileModalOpen(false)}
         currentUser={currentUser}
         onUpdateProfile={handleUpdateProfile}
+        onResetWorkspace={handleResetWorkspace}
       />
       <NotificationsModal 
         isOpen={isNotificationsModalOpen}
