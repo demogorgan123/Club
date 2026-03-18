@@ -1,5 +1,6 @@
 import { User, Team, Channel, Task, Message, AppIntegration, Role } from '../types';
-import { supabase } from './supabaseClient';
+import { supabase } from '../lib/supabase';
+import { mockWorkspaceData } from './mockData';
 
 const STORAGE_KEY = 'club_workspace_data';
 
@@ -26,7 +27,11 @@ export const api = {
         }
         
         // Fallback to LocalStorage
-        return getLocalData();
+        const localData = getLocalData();
+        if (localData) return localData;
+
+        // Default to Mock Data
+        return mockWorkspaceData;
     },
 
     async saveData(data: any) {

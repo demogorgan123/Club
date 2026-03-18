@@ -50,3 +50,25 @@ export const getMessagesForChannel = (channelId: string) => {
 }
 
 export const USER_ID = 'user-1';
+
+export const mockWorkspaceData = {
+    clubName: "My Club",
+    isInitialized: true,
+    users: [
+        { id: 'user-1', name: 'Alex Johnson', avatarUrl: 'https://picsum.photos/seed/alex/40/40', role: 'Secretary', email: 'alex.j@example.com' },
+    ],
+    teams: [],
+    channels: [
+        { id: 'general', name: 'general', type: 'general' },
+        { id: 'announcements', name: 'announcements', type: 'announcements' },
+    ],
+    tasks: {},
+    messages: {
+        'general': [
+            { id: 'msg-g1', text: 'Welcome to the club workspace!', userId: 'user-1', timestamp: '10:30 AM' },
+        ],
+        'announcements': [
+            { id: 'msg-a1', text: 'IMPORTANT: First all-hands meeting is this Friday. Please be there!', userId: 'user-1', timestamp: '9:00 AM' },
+        ]
+    }
+};
