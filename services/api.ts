@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { mockWorkspaceData } from './mockData';
 
 const STORAGE_KEY = 'club_workspace_data';
+const WORKSPACE_ID = '00000000-0000-0000-0000-000000000001';
 
 // Helper to get data from LocalStorage
 const getLocalData = () => {
@@ -19,8 +20,12 @@ export const api = {
     async getData() {
         if (supabase) {
             try {
-                const { data, error } = await supabase.from('workspace_data').select('*').single();
-                if (!error && data) return data.content;
+                const { data, error } = await supabase.from('workspace_data').select('*').eq('id', WORKSPACE_ID).single();
+                if (!error && data) return data.data;
+                
+                // If not found, try to get any record
+                const { data: anyData, error: anyError } = await supabase.from('workspace_data').select('*').limit(1).single();
+                if (!anyError && anyData) return anyData.data;
             } catch (e) {
                 console.error('Supabase fetch error:', e);
             }
@@ -37,7 +42,7 @@ export const api = {
     async saveData(data: any) {
         if (supabase) {
             try {
-                const { error } = await supabase.from('workspace_data').upsert({ id: 1, content: data });
+                const { error } = await supabase.from('workspace_data').upsert({ id: WORKSPACE_ID, data: data });
                 if (!error) return { status: 'ok' };
             } catch (e) {
                 console.error('Supabase save error:', e);
@@ -111,7 +116,7 @@ export const api = {
         localStorage.removeItem(STORAGE_KEY);
         if (supabase) {
             try {
-                await supabase.from('workspace_data').delete().eq('id', 1);
+                await supabase.from('workspace_data').delete().eq('id', WORKSPACE_ID);
             } catch (e) {
                 console.error('Supabase reset error:', e);
             }
