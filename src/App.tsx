@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { User, ActiveView, Channel, Team, Task, Role, ChannelType, AppIntegration, Notification, Message, Event } from './types';
-import { initializeWorkspaceData, USER_ID } from './services/mockData';
 import { AVAILABLE_APPS } from './services/appData';
 import { api } from './services/api';
 import Sidebar from './components/Sidebar';
@@ -16,6 +15,8 @@ import MembersModal from './components/MembersModal';
 import ProfileModal from './components/ProfileModal';
 import NotificationsModal from './components/NotificationsModal';
 import SearchResults from './components/SearchResults';
+
+const USER_ID = 'user-1';
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -92,10 +93,38 @@ const App: React.FC = () => {
   }, [clubName, isInitialized, users, teams, channels, tasks, teamApps, notifications, events]);
 
   const handleGenerateWorkspace = async (name: string, newTeams: { name: string; iconId: string }[], onboardingTeamApps: { [teamName: string]: string[] }) => {
-    const initialData = initializeWorkspaceData(newTeams);
+    // Initialize workspace data locally instead of using mockData
+    const initialTeams: Team[] = newTeams.map((teamData) => ({
+      id: teamData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      name: teamData.name,
+      iconId: teamData.iconId,
+    }));
+
+    const initialUsers: User[] = [
+      { id: USER_ID, name: 'Alex Johnson', avatarUrl: `https://picsum.photos/seed/${USER_ID}/40/40`, role: 'Secretary', email: 'alex.j@example.com' },
+    ];
     
+    const generalChannels: Channel[] = [
+      { id: 'general', name: 'general', type: ChannelType.GENERAL },
+      { id: 'announcements', name: 'announcements', type: ChannelType.ANNOUNCEMENTS },
+    ];
+
+    const teamChannels: Channel[] = initialTeams.map(team => ({
+        id: `${team.id}-chat`,
+        name: team.name.toLowerCase().replace(/\s+/g, '-'),
+        type: ChannelType.TEAM,
+        teamId: team.id,
+    }));
+    
+    const initialChannels = [...generalChannels, ...teamChannels];
+
+    const initialTasks: { [teamId: string]: Task[] } = {};
+    initialTeams.forEach(team => {
+        initialTasks[team.id] = [];
+    });
+
     const newTeamApps: { [teamId: string]: AppIntegration[] } = {};
-    initialData.teams.forEach(team => {
+    initialTeams.forEach(team => {
         const appNames = onboardingTeamApps[team.name] || [];
         newTeamApps[team.id] = AVAILABLE_APPS.filter(app => appNames.includes(app.name));
     });
@@ -103,10 +132,10 @@ const App: React.FC = () => {
     const data = {
         clubName: name,
         isInitialized: true,
-        users: initialData.users,
-        teams: initialData.teams,
-        channels: initialData.channels,
-        tasks: initialData.tasks,
+        users: initialUsers,
+        teams: initialTeams,
+        channels: initialChannels,
+        tasks: initialTasks,
         teamApps: newTeamApps
     };
 
